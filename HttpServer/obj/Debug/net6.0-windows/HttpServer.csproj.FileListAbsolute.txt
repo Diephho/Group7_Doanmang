@@ -1,0 +1,16 @@
+D:\HttpServer\bin\Debug\net6.0-windows\HttpServer.exe
+D:\HttpServer\bin\Debug\net6.0-windows\HttpServer.deps.json
+D:\HttpServer\bin\Debug\net6.0-windows\HttpServer.runtimeconfig.json
+D:\HttpServer\bin\Debug\net6.0-windows\HttpServer.dll
+D:\HttpServer\bin\Debug\net6.0-windows\HttpServer.pdb
+D:\HttpServer\obj\Debug\net6.0-windows\Server.resources
+D:\HttpServer\obj\Debug\net6.0-windows\HttpServer.csproj.GenerateResource.cache
+D:\HttpServer\obj\Debug\net6.0-windows\HttpServer.GeneratedMSBuildEditorConfig.editorconfig
+D:\HttpServer\obj\Debug\net6.0-windows\HttpServer.AssemblyInfoInputs.cache
+D:\HttpServer\obj\Debug\net6.0-windows\HttpServer.AssemblyInfo.cs
+D:\HttpServer\obj\Debug\net6.0-windows\HttpServer.csproj.CoreCompileInputs.cache
+D:\HttpServer\obj\Debug\net6.0-windows\HttpServer.dll
+D:\HttpServer\obj\Debug\net6.0-windows\refint\HttpServer.dll
+D:\HttpServer\obj\Debug\net6.0-windows\HttpServer.pdb
+D:\HttpServer\obj\Debug\net6.0-windows\HttpServer.genruntimeconfig.cache
+D:\HttpServer\obj\Debug\net6.0-windows\ref\HttpServer.dll
