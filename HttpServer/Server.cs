@@ -89,45 +89,68 @@ public class Server : Form
         serverlis.Prefixes.Add("http://*:5050/");
         serverlis.Start();
         Display("Listening...");
-        try { 
+        try
+        {
             while (true)
             {
                 HttpListenerContext context = serverlis.GetContext();
                 HttpListenerRequest request = context.Request;
                 Display($"{request.HttpMethod} {request.Url}");
-                if (request.HasEntityBody)
-                {
-                    var body = request.InputStream;
-                    var encoding = request.ContentEncoding;
-                    var reader = new StreamReader(body, encoding);
-                    if (request.ContentType != null)
-                    {
-                        Display($"Client data content type {request.ContentType}");
-                    }
-                    Display($"Client data content length {request.ContentLength64}");
-
-                    Display("Start of data:");
-                    string s = reader.ReadToEnd();
-                    Display(s);
-                    Display("End of data:");
-                    reader.Close();
-                    body.Close();
-                }
                 HttpListenerResponse response = context.Response;
-                string responseString = "<HTML><BODY>Hello Diep!</BODY></HTML>";
-                byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
-                response.ContentLength64 = buffer.Length;
-                Stream output = response.OutputStream;
-                output.Write(buffer, 0, buffer.Length);
-                output.Close();
+
+                if (request.HttpMethod == "GET")
+                {
+                    // Trả về form HTML cho client
+                    string formHtml = "<HTML><BODY>" +
+                                      "<form method=\"POST\">" +
+                                      "<input type=\"text\" name=\"name\" />" +
+                                      "<input type=\"submit\" value=\"Submit\" />" +
+                                      "</form>" +
+                                      "</BODY></HTML>";
+                    byte[] formBuffer = System.Text.Encoding.UTF8.GetBytes(formHtml);
+                    response.ContentLength64 = formBuffer.Length;
+                    Stream output = response.OutputStream;
+                    output.Write(formBuffer, 0, formBuffer.Length);
+                    output.Close();
+                }
+                else if (request.HttpMethod == "POST")
+                {
+                    // Xử lý dữ liệu POST từ client
+                    if (request.HasEntityBody)
+                    {
+                        var body = request.InputStream;
+                        var encoding = request.ContentEncoding;
+                        var reader = new StreamReader(body, encoding);
+                        if (request.ContentType != null)
+                        {
+                            Display($"Client data content type {request.ContentType}");
+                        }
+                        Display($"Client data content length {request.ContentLength64}");
+
+                        Display("Start of data:");
+                        string s = reader.ReadToEnd();
+                        Display(s);
+                        Display("End of data:");
+                        reader.Close();
+                        body.Close();
+
+                        // Tạo phản hồi dựa trên dữ liệu nhận được
+                        string responseString = $"<HTML><BODY>Hello {s.Split('=')[1]}!</BODY></HTML>";
+                        byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
+                        response.ContentLength64 = buffer.Length;
+                        Stream output = response.OutputStream;
+                        output.Write(buffer, 0, buffer.Length);
+                        output.Close();
+                    }
+                }
             }
         }
         catch (Exception ex)
-            {
+        {
             MessageBox.Show($"Error: {ex.Message}");
         }
-            finally
-            {
+        finally
+        {
             serverlis.Stop();
         }
     }

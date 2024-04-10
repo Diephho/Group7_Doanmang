@@ -14,11 +14,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\HTTPServer\\HTTPServer.csproj",
+      "projectUniqueName": "D:\\Group7_Doanmang\\HttpServer\\HTTPServer.csproj",
       "projectName": "HTTPServer",
-      "projectPath": "D:\\HTTPServer\\HTTPServer.csproj",
+      "projectPath": "D:\\Group7_Doanmang\\HttpServer\\HTTPServer.csproj",
       "packagesPath": "C:\\Users\\khang\\.nuget\\packages\\",
-      "outputPath": "D:\\HTTPServer\\obj\\",
+      "outputPath": "D:\\Group7_Doanmang\\HttpServer\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
