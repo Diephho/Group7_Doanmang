@@ -1,4 +1,5 @@
 ﻿using Microsoft.VisualBasic.ApplicationServices;
+using Newtonsoft.Json;
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -10,6 +11,7 @@ using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Windows.Forms;
 
 public class Server : Form
@@ -41,7 +43,7 @@ public class Server : Form
         Request_label.Font = new Font("Segoe UI", 12F, FontStyle.Regular, GraphicsUnit.Point);
         Request_label.Location = new Point(38, 22);
         Request_label.Name = "Request_label";
-        Request_label.Size = new Size(124, 28);
+        Request_label.Size = new Size(153, 32);
         Request_label.TabIndex = 1;
         Request_label.Text = "Request List: ";
         // 
@@ -75,6 +77,7 @@ public class Server : Form
         Controls.Add(Request_label);
         Controls.Add(textBox1);
         Name = "Server";
+        Load += Server_Load;
         ResumeLayout(false);
         PerformLayout();
     }
@@ -83,7 +86,7 @@ public class Server : Form
     private Button button1;
     private bool check;
 
-    private void startlis()
+    private async void startlis()
     {
         HttpListener serverlis = new HttpListener();
         serverlis.Prefixes.Add("http://*:5050/");
@@ -95,54 +98,104 @@ public class Server : Form
             {
                 HttpListenerContext context = serverlis.GetContext();
                 HttpListenerRequest request = context.Request;
-                Display($"{request.HttpMethod} {request.Url}");
+                Display($"{request.HttpMethod} {request.RawUrl} HTTP/1.1");
+                // Lấy tất cả các key của tiêu đề
+                string[] headerKeys = request.Headers.AllKeys;
+
+                // Duyệt qua các key từ sau ra trước
+                for (int i = headerKeys.Length - 1; i >= 0; i--)
+                {
+                    string key = headerKeys[i];
+                    Display($"{key}: {request.Headers[key]}");
+                }
                 HttpListenerResponse response = context.Response;
 
-                if (request.HttpMethod == "GET")
+                switch (request.Url.AbsolutePath)
                 {
-                    // Trả về form HTML cho client
-                    string formHtml = "<HTML><BODY>" +
-                                      "<form method=\"POST\">" +
-                                      "<input type=\"text\" name=\"name\" />" +
-                                      "<input type=\"submit\" value=\"Submit\" />" +
-                                      "</form>" +
-                                      "</BODY></HTML>";
-                    byte[] formBuffer = System.Text.Encoding.UTF8.GetBytes(formHtml);
-                    response.ContentLength64 = formBuffer.Length;
-                    Stream output = response.OutputStream;
-                    output.Write(formBuffer, 0, formBuffer.Length);
-                    output.Close();
-                }
-                else if (request.HttpMethod == "POST")
-                {
-                    // Xử lý dữ liệu POST từ client
-                    if (request.HasEntityBody)
+                    case "/":
                     {
-                        var body = request.InputStream;
-                        var encoding = request.ContentEncoding;
-                        var reader = new StreamReader(body, encoding);
-                        if (request.ContentType != null)
-                        {
-                            Display($"Client data content type {request.ContentType}");
+                            if (request.HttpMethod == "GET")
+                            {
+                                // Trả về form HTML cho client
+                                string formHtml = "<HTML><BODY>" +
+                                                  "<form method=\"POST\">" +
+                                                  "<input type=\"text\" name=\"name\" />" +
+                                                  "<input type=\"submit\" value=\"Submit\" />" +
+                                                  "</form>" +
+                                                  "</BODY></HTML>";
+                                byte[] formBuffer = System.Text.Encoding.UTF8.GetBytes(formHtml);
+                                response.ContentLength64 = formBuffer.Length;
+                                Stream output = response.OutputStream;
+                                output.Write(formBuffer, 0, formBuffer.Length);
+                                output.Close();
+                            }
+                            else if (request.HttpMethod == "POST")
+                            {
+                                // Xử lý dữ liệu POST từ client
+                                if (request.HasEntityBody)
+                                {
+                                    var body = request.InputStream;
+                                    var encoding = request.ContentEncoding;
+                                    var reader = new StreamReader(body, encoding);
+
+                                    Display("Start of data:");
+                                    string s = reader.ReadToEnd();
+                                    Display(s);
+                                    Display("End of data:");
+                                    reader.Close();
+                                    body.Close();
+
+                                    // Tạo phản hồi dựa trên dữ liệu nhận được
+                                    string responseString = $"<HTML><BODY>Hello {s.Split('=')[1]}!</BODY></HTML>";
+                                    byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
+                                    response.ContentLength64 = buffer.Length;
+                                    Stream output = response.OutputStream;
+                                    output.Write(buffer, 0, buffer.Length);
+                                    output.Close();
+                                }
+                            }
+                            break;
                         }
-                        Display($"Client data content length {request.ContentLength64}");
+                    case "/json":
+                        {
+                            response.Headers.Add("Content-Type", "application/json");
 
-                        Display("Start of data:");
-                        string s = reader.ReadToEnd();
-                        Display(s);
-                        Display("End of data:");
-                        reader.Close();
-                        body.Close();
+                            var name = new
+                            {
+                                firstName = "A",
+                                lastName = "B",
+                            };
+                            var json = JsonConvert.SerializeObject(name);
+                            var buffer = Encoding.UTF8.GetBytes(json);
+                            response.ContentLength64 = buffer.Length;
+                            Stream output = response.OutputStream;
+                            output.Write(buffer, 0, buffer.Length);
+                            output.Close();
+                            break;
+                        }
+                    case "/anhmeo.png":
+                        {
+                            response.Headers.Add("Content-Type", "image/png");
+                            var buffer = await File.ReadAllBytesAsync("meongusay.png");
+                            response.ContentLength64 = buffer.Length;
+                            Stream output = response.OutputStream;
+                            output.Write(buffer, 0, buffer.Length);
+                            output.Close();
+                            break;
+                        }
+                    default:
+                        {
+                            response.StatusCode = (int)HttpStatusCode.NotFound;
+                            var buffer = Encoding.UTF8.GetBytes("NOT FOUND");
+                            response.ContentLength64 = buffer.Length;
+                            Stream output = response.OutputStream;
+                            output.Write(buffer, 0, buffer.Length);
+                            output.Close();
+                            break;
+                        }
+                }    
 
-                        // Tạo phản hồi dựa trên dữ liệu nhận được
-                        string responseString = $"<HTML><BODY>Hello {s.Split('=')[1]}!</BODY></HTML>";
-                        byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
-                        response.ContentLength64 = buffer.Length;
-                        Stream output = response.OutputStream;
-                        output.Write(buffer, 0, buffer.Length);
-                        output.Close();
-                    }
-                }
+                
             }
         }
         catch (Exception ex)
@@ -182,6 +235,11 @@ public class Server : Form
     private void button1_Click(object sender, EventArgs e)
     {
         check = false;
+    }
+
+    private void Server_Load(object sender, EventArgs e)
+    {
+
     }
 }
 
