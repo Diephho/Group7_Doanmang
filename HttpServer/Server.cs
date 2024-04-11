@@ -16,6 +16,7 @@ using System.Text.Json.Serialization;
 using System.Web;
 using System.Windows.Forms;
 using MySql.Data.MySqlClient;
+using System.Security.Cryptography;
 public class Server : Form
 {
 
@@ -190,7 +191,9 @@ public class Server : Form
                                 string responseString;
                                 if (loginSuccess)
                                 {
-                                    responseString = "<HTML><BODY>Login successful!</BODY></HTML>";
+                                    responseString = "<HTML><BODY>Login successful!" +
+                                                     $"<h1>Hello {username} <h1>" +
+                                                     "</BODY></HTML>";
                                 }
                                 else
                                 {
@@ -265,7 +268,7 @@ public class Server : Form
                             }
                         }
                         break;
-                    case "/json":
+                    
                     case string path when path.StartsWith("/json/"):
                         {
                             // Lấy id từ URL
@@ -439,7 +442,7 @@ public class Server : Form
     public bool CheckLogin(string username, string password)
     {
         bool result = false;
-        string connectionString = "Server=localhost;Database=myDatabase;Uid=myUsername;Pwd=myPassword;";
+        string connectionString = "Server=localhost;Port=3306;Database=Account;Uid=root;Pwd=okdiep12";
         using (var connection = new MySqlConnection(connectionString))
         {
             connection.Open();
@@ -457,11 +460,11 @@ public class Server : Form
     public bool ProcessRegistration(string username, string password, string name)
     {
         bool result = false;
-        string connectionString = "Server=localhost;Port=3306;Uid=root;Pwd=;";
+        string connectionString = "Server=localhost;Port=3306;Database=Account;Uid=root;Pwd=okdiep12";
         using (var connection = new MySqlConnection(connectionString))
         {
             connection.Open();
-            string query = "INSERT INTO Users (Username, name, Password) VALUES (@username, @name, SHA2(@password, 256))"; // Sửa thứ tự và thêm mã hóa mật khẩu
+            string query = "INSERT INTO Users (Username, Password, name) VALUES (@username, SHA2(@password, 256), @name)"; // Sửa thứ tự và thêm mã hóa mật khẩu
             using (var command = new MySqlCommand(query, connection))
             {
                 command.Parameters.AddWithValue("@username", username);
