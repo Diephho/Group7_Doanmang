@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Dynamic;
 using System.IO;
 using System.Net;
 using System.Reflection.Emit;
@@ -265,22 +266,142 @@ public class Server : Form
                         }
                         break;
                     case "/json":
+                    case string path when path.StartsWith("/json/"):
                         {
-                            response.Headers.Add("Content-Type", "application/json");
+                            // Lấy id từ URL
+                            string id = path.Substring("/json/".Length);
 
-                            var name = new
+
+                            if (request.HttpMethod == "GET")
                             {
-                                firstName = "A",
-                                lastName = "B",
-                            };
-                            var json = JsonConvert.SerializeObject(name);
-                            var buffer = Encoding.UTF8.GetBytes(json);
-                            response.ContentLength64 = buffer.Length;
-                            Stream output = response.OutputStream;
-                            output.Write(buffer, 0, buffer.Length);
-                            output.Close();
+                                // Đọc dữ liệu từ tệp JSON
+                                var jsonFilePath = $"{id}.json";
+
+                                if (File.Exists(jsonFilePath))
+                                {
+                                    string jsonData = File.ReadAllText(jsonFilePath);
+
+                                    // Trả về dữ liệu JSON như một phản hồi HTTP
+                                    response.Headers.Add("Content-Type", "application/json");
+                                    byte[] buffer = Encoding.UTF8.GetBytes(jsonData);
+                                    response.ContentLength64 = buffer.Length;
+                                    Stream output = response.OutputStream;
+                                    output.Write(buffer, 0, buffer.Length);
+                                    output.Close();
+                                }
+                                else
+                                {
+                                    // Trả về lỗi 404 nếu tệp không tồn tại
+                                    response.StatusCode = (int)HttpStatusCode.NotFound;
+                                    var buffer = Encoding.UTF8.GetBytes("File Not Found");
+                                    response.ContentLength64 = buffer.Length;
+                                    Stream output = response.OutputStream;
+                                    output.Write(buffer, 0, buffer.Length);
+                                    output.Close();
+                                }
+                            }
+                            else if (request.HttpMethod == "POST")
+                            {
+                                // Kiểm tra xem tệp JSON đã tồn tại chưa
+                                var jsonFilePath = $"{id}.json";
+
+                                if (!File.Exists(jsonFilePath))
+                                {
+                                    // Tạo một mảng rỗng nếu tệp không tồn tại
+                                    File.WriteAllText(jsonFilePath, "[]");
+
+                                    // Lấy dữ liệu từ yêu cầu POST
+                                    if (request.HasEntityBody)
+                                    {
+                                        var body = request.InputStream;
+                                        var encoding = request.ContentEncoding;
+                                        var reader = new StreamReader(body, encoding);
+                                        string postData = reader.ReadToEnd();
+                                        Display("\n" + postData);
+                                        reader.Close();
+                                        body.Close();
+
+                                        // Phân tích dữ liệu POST
+                                        var postParams = System.Web.HttpUtility.ParseQueryString(postData);
+                                        var firstName = postParams["firstName"];
+                                        var lastName = postParams["lastName"];
+
+                                        // Đọc dữ liệu hiện tại từ tệp JSON
+                                        string jsonData = File.ReadAllText(jsonFilePath);
+
+                                        // Phân tích dữ liệu JSON hiện tại thành danh sách đối tượng
+                                        List<dynamic> jsonObject = JsonConvert.DeserializeObject<List<dynamic>>(jsonData);
+
+                                        // Thêm dữ liệu mới vào danh sách
+                                        dynamic newData = new ExpandoObject();
+                                        newData.firstName = firstName;
+                                        newData.lastName = lastName;
+                                        jsonObject.Add(newData);
+
+                                        // Ghi lại dữ liệu vào tệp JSON
+                                        File.WriteAllText(jsonFilePath, JsonConvert.SerializeObject(jsonObject));
+
+                                        // Trả về phản hồi thành công
+                                        string responseString = $"Added firstName:{firstName}, lastName:{lastName} to JSON database at {jsonFilePath}.";
+                                        byte[] buffer = Encoding.UTF8.GetBytes(responseString);
+                                        response.ContentLength64 = buffer.Length;
+                                        Stream output = response.OutputStream;
+                                        output.Write(buffer, 0, buffer.Length);
+                                        output.Close();
+                                    }
+                                }
+                                else
+                                {
+                                    // Trả về lỗi 409 nếu tệp đã tồn tại
+                                    response.StatusCode = (int)HttpStatusCode.Conflict;
+                                    var buffer = Encoding.UTF8.GetBytes("File Already Exists");
+                                    response.ContentLength64 = buffer.Length;
+                                    Stream output = response.OutputStream;
+                                    output.Write(buffer, 0, buffer.Length);
+                                    output.Close();
+                                }
+                            }
+                            else if (request.HttpMethod == "DELETE")
+                            {
+                                // Xóa tệp JSON nếu tồn tại
+                                var jsonFilePath = $"{id}.json";
+
+                                if (File.Exists(jsonFilePath))
+                                {
+                                    File.Delete(jsonFilePath);
+
+                                    // Trả về phản hồi thành công
+                                    string responseString = $"Deleted JSON file {jsonFilePath}.";
+                                    byte[] buffer = Encoding.UTF8.GetBytes(responseString);
+                                    response.ContentLength64 = buffer.Length;
+                                    Stream output = response.OutputStream;
+                                    output.Write(buffer, 0, buffer.Length);
+                                    output.Close();
+                                }
+                                else
+                                {
+                                    // Trả về lỗi 404 nếu tệp không tồn tại
+                                    response.StatusCode = (int)HttpStatusCode.NotFound;
+                                    var buffer = Encoding.UTF8.GetBytes("File Not Found");
+                                    response.ContentLength64 = buffer.Length;
+                                    Stream output = response.OutputStream;
+                                    output.Write(buffer, 0, buffer.Length);
+                                    output.Close();
+                                }
+                            }
+                            else
+                            {
+                                // Trường hợp không hỗ trợ phương thức HTTP khác
+                                response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+                                var buffer = Encoding.UTF8.GetBytes("Method Not Allowed");
+                                response.ContentLength64 = buffer.Length;
+                                Stream output = response.OutputStream;
+                                output.Write(buffer, 0, buffer.Length);
+                                output.Close();
+                            }
                             break;
                         }
+              
                     case "/anhmeo.png":
                         {
                             response.Headers.Add("Content-Type", "image/png");
