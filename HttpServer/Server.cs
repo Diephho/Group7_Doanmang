@@ -12,8 +12,9 @@ using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Web;
 using System.Windows.Forms;
-
+using MySql.Data.MySqlClient;
 public class Server : Form
 {
 
@@ -116,7 +117,6 @@ public class Server : Form
                     {
                             if (request.HttpMethod == "GET")
                             {
-                                // Trả về form HTML cho client
                                 string formHtml = "<HTML><BODY>" +
                                                   "<form method=\"POST\">" +
                                                   "<input type=\"text\" name=\"name\" />" +
@@ -131,7 +131,6 @@ public class Server : Form
                             }
                             else if (request.HttpMethod == "POST")
                             {
-                                // Xử lý dữ liệu POST từ client
                                 if (request.HasEntityBody)
                                 {
                                     var body = request.InputStream;
@@ -144,8 +143,6 @@ public class Server : Form
                                     Display("End of data:");
                                     reader.Close();
                                     body.Close();
-
-                                    // Tạo phản hồi dựa trên dữ liệu nhận được
                                     string responseString = $"<HTML><BODY>Hello {s.Split('=')[1]}!</BODY></HTML>";
                                     byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
                                     response.ContentLength64 = buffer.Length;
@@ -156,6 +153,117 @@ public class Server : Form
                             }
                             break;
                         }
+                    case "/login":
+                        if (request.HttpMethod == "GET")
+                        {
+                            string loginFormHtml = "<HTML><BODY>" +
+                                                   "<h2>Login</h2>" +
+                                                   "<form method=\"POST\">" +
+                                                   "<label for=\"username\">Username:</label>" +
+                                                   "<input type=\"text\" id=\"username\" name=\"username\" /><br><br>" +
+                                                   "<label for=\"password\">Password:</label>" +
+                                                   "<input type=\"password\" id=\"password\" name=\"password\" /><br><br>" +
+                                                   "<input type=\"submit\" value=\"Login\" />" +
+                                                   "</form>" +
+                                                   "</BODY></HTML>";
+                            byte[] loginFormBuffer = System.Text.Encoding.UTF8.GetBytes(loginFormHtml);
+                            response.ContentLength64 = loginFormBuffer.Length;
+                            Stream output = response.OutputStream;
+                            output.Write(loginFormBuffer, 0, loginFormBuffer.Length);
+                            output.Close();
+                        }
+                        else if (request.HttpMethod == "POST")
+                        {
+                            if (request.HasEntityBody)
+                            {
+                                var body = request.InputStream;
+                                var encoding = request.ContentEncoding;
+                                var reader = new StreamReader(body, encoding);
+                                string postData = reader.ReadToEnd();
+                                postData = HttpUtility.UrlDecode(postData);
+
+                                var parameters = postData.Split('&').Select(param => param.Split('=')).ToDictionary(pair => pair[0], pair => pair[1]);
+                                string username = parameters["username"];
+                                string password = parameters["password"];
+                                bool loginSuccess = CheckLogin(username, password);
+                                string responseString;
+                                if (loginSuccess)
+                                {
+                                    responseString = "<HTML><BODY>Login successful!</BODY></HTML>";
+                                }
+                                else
+                                {
+                                    responseString = "<HTML><BODY>Login failed. Please try again.</BODY></HTML>";
+                                }
+
+                                byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
+                                response.ContentLength64 = buffer.Length;
+                                Stream output = response.OutputStream;
+                                output.Write(buffer, 0, buffer.Length);
+                                output.Close();
+
+                                reader.Close();
+                                body.Close();
+                            }
+                        }
+                        break;
+
+                    case "/register":
+                        if (request.HttpMethod == "GET")
+                        {
+                            string registerFormHtml = "<HTML><BODY>" +
+                                                      "<h2>Register</h2>" +
+                                                      "<form method=\"POST\">" +
+                                                      "<label for=\"username\">Username:</label>" +
+                                                      "<input type=\"text\" id=\"username\" name=\"username\" /><br><br>" +
+                                                      "<label for=\"password\">Password:</label>" +
+                                                      "<input type=\"password\" id=\"password\" name=\"password\" /><br><br>" +
+                                                      "<label for=\"name\">name:</label>" +
+                                                      "<input type=\"name\" id=\"name\" name=\"name\" /><br><br>" +
+                                                      "<input type=\"submit\" value=\"Register\" />" +
+                                                      "</form>" +
+                                                      "</BODY></HTML>";
+                            byte[] registerFormBuffer = System.Text.Encoding.UTF8.GetBytes(registerFormHtml);
+                            response.ContentLength64 = registerFormBuffer.Length;
+                            Stream output = response.OutputStream;
+                            output.Write(registerFormBuffer, 0, registerFormBuffer.Length);
+                            output.Close();
+                        }
+                        else if (request.HttpMethod == "POST")
+                        {
+                            if (request.HasEntityBody)
+                            {
+                                var body = request.InputStream;
+                                var encoding = request.ContentEncoding;
+                                var reader = new StreamReader(body, encoding);
+                                string postData = reader.ReadToEnd();
+                                postData = HttpUtility.UrlDecode(postData);
+                                var parameters = postData.Split('&').Select(param => param.Split('=')).ToDictionary(pair => pair[0], pair => pair[1]);
+                                string username = parameters["username"];
+                                string password = parameters["password"];
+                                string name = parameters["name"];
+                                bool registerSuccess = ProcessRegistration(username,password,name);
+                                string responseString;
+                                if (registerSuccess)
+                                {
+                                    responseString = "<HTML><BODY>Registration successful!</BODY></HTML>";
+                                }
+                                else
+                                {
+                                    responseString = "<HTML><BODY>Registration failed. Please try again.</BODY></HTML>";
+                                }
+
+                                byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
+                                response.ContentLength64 = buffer.Length;
+                                Stream output = response.OutputStream;
+                                output.Write(buffer, 0, buffer.Length);
+                                output.Close();
+
+                                reader.Close();
+                                body.Close();
+                            }
+                        }
+                        break;
                     case "/json":
                         {
                             response.Headers.Add("Content-Type", "application/json");
@@ -207,6 +315,45 @@ public class Server : Form
             serverlis.Stop();
         }
     }
+    public bool CheckLogin(string username, string password)
+    {
+        bool result = false;
+        string connectionString = "Server=localhost;Database=myDatabase;Uid=myUsername;Pwd=myPassword;";
+        using (var connection = new MySqlConnection(connectionString))
+        {
+            connection.Open();
+            string query = "SELECT COUNT(1) FROM Users WHERE Username=@username AND Password=SHA2(@password, 256)";
+            using (var command = new MySqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@username", username);
+                command.Parameters.AddWithValue("@password", password); // Mật khẩu nên được mã hóa trước khi so sánh
+                result = Convert.ToInt32(command.ExecuteScalar()) == 1;
+            }
+        }
+        return result;
+    }
+
+    public bool ProcessRegistration(string username, string password, string name)
+    {
+        bool result = false;
+        string connectionString = "Server=localhost;Port=3306;Uid=root;Pwd=;";
+        using (var connection = new MySqlConnection(connectionString))
+        {
+            connection.Open();
+            string query = "INSERT INTO Users (Username, name, Password) VALUES (@username, @name, SHA2(@password, 256))"; // Sửa thứ tự và thêm mã hóa mật khẩu
+            using (var command = new MySqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@username", username);
+                command.Parameters.AddWithValue("@name", name);
+                command.Parameters.AddWithValue("@password", password); // Mật khẩu nên được mã hóa trước khi lưu
+                result = command.ExecuteNonQuery() == 1;
+            }
+        }
+        return result;
+    }
+
+
+
     private void Display(string message)
     {
         if (textBox1.InvokeRequired)
